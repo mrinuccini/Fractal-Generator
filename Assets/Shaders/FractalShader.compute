@@ -1,0 +1,162 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Julia
+#pragma kernel Mandelbrot
+#pragma kernel BurningShip
+
+struct Color
+{
+	float r;
+	float g;
+	float b;
+};
+
+struct PosData
+{
+	double zoom;
+	double posX;
+	double posY;
+};
+
+double c_modulus_2(double2 complex)
+{
+	return complex.x * complex.x + complex.y * complex.y;
+}
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+RWStructuredBuffer<PosData> posData;
+
+float xRes;
+float yRes;
+int maxIter;
+float Cr;
+float Ci;
+
+float4 rChannel;
+float4 gChannel;
+float4 bChannel;
+
+float4 GetColor(int i, float2 number)
+{
+	float continuous_index = i + 1 - (log(2) / c_modulus_2(number)) / log(2);
+
+	float4 color = float4(0, 0, 0, 0);
+
+	color.x = (sin(rChannel.x * continuous_index + rChannel.y) * rChannel.z + rChannel.w) / 255;
+	color.y = (sin(gChannel.x * continuous_index + gChannel.y) * gChannel.z + gChannel.w) / 255;
+	color.z = (sin(bChannel.x * continuous_index + bChannel.y) * bChannel.z + bChannel.w) / 255;
+
+	return color;
+}
+
+[numthreads(8,8,1)]
+void Julia (int3 id : SV_DispatchThreadID)
+{
+	float4 color = float4(1, 1, 1, 0);
+	double zoom = posData[0].zoom;
+
+	int2 virtualCoordsInt = int2(id.x - xRes / 2, id.y - yRes / 2);
+	double2 number = double2(virtualCoordsInt.x * zoom / (double(xRes)) + posData[0].posX, virtualCoordsInt.y * zoom / (double(yRes) / 0.5625) + posData[0].posY);
+	double2 temp = double2(0.f, 0.f);
+
+	for(int i = 0; i < maxIter; i++)
+	{
+		temp = number;
+
+		number.x = temp.x * temp.x - temp.y * temp.y + double(Cr);
+		number.y = 2. * temp.x * temp.y + double(Ci);
+
+		if (c_modulus_2(number) > 4)
+		{
+			color = GetColor(i, number);
+
+			break;
+		}
+	}
+
+	if(c_modulus_2(number) < 4)
+	{
+		color = float4(0, 0, 0, 0);
+	}
+	
+
+	Result[id.xy] = color;
+}
+
+[numthreads(8, 8, 1)]
+void Mandelbrot(int3 id : SV_DispatchThreadID)
+{
+	float4 color = float4(1, 1, 1, 0);
+	double zoom = posData[0].zoom;
+
+	int2 virtualCoordsInt = int2(id.x - xRes / 2, id.y - yRes / 2);
+	double2 C = double2(virtualCoordsInt.x * zoom / (double(xRes)) + posData[0].posX, virtualCoordsInt.y * zoom / (double(yRes) / 0.5625) + posData[0].posY);
+	
+	double2 number = double2(0, 0);
+	
+	double2 temp = double2(0.f, 0.f);
+
+	for (int i = 0; i < maxIter; i++)
+	{
+		temp = number;
+
+		number.x = temp.x * temp.x - temp.y * temp.y + C.x;
+		number.y = 2. * temp.x * temp.y + C.y;
+
+		if (c_modulus_2(number) > 4)
+		{
+			color = GetColor(i, number);
+
+			break;
+		}
+	}
+
+	if (c_modulus_2(number) < 4)
+	{
+		color = float4(0, 0, 0, 0);
+	}
+
+
+	Result[id.xy] = color;
+}
+
+[numthreads(8, 8, 1)]
+void BurningShip(int3 id : SV_DispatchThreadID)
+{
+	float4 color = float4(1, 1, 1, 0);
+	double zoom = posData[0].zoom;
+
+	int2 virtualCoordsInt = int2(id.x - xRes / 2, id.y - yRes / 2);
+	int2 flippedCoords = int2(id.x, -virtualCoordsInt.y + yRes / 2);
+	double2 C = double2(double(virtualCoordsInt.x) * zoom / (double(xRes)) + posData[0].posX, double(virtualCoordsInt.y) * zoom / (double(yRes) / 0.5625) + posData[0].posY);
+
+	double2 number = double2(0, 0);
+
+	double2 temp = double2(0.f, 0.f);
+
+	for (int i = 0; i < maxIter; i++)
+	{
+		temp = number;
+
+		temp.x = abs(temp.x);
+		temp.y = abs(temp.y);
+
+		number.x = temp.x * temp.x - temp.y * temp.y + C.x;
+		number.y = 2. * temp.x * temp.y + C.y;
+
+		if (c_modulus_2(number) > 4)
+		{
+			color = GetColor(i, number);
+
+			break;
+		}
+	}
+
+	if (c_modulus_2(number) < 4)
+	{
+		color = float4(0, 0, 0, 0);
+	}
+
+	Result[flippedCoords.xy] = color;
+}

@@ -1,0 +1,49 @@
+/* Complex Numbers opperations */
+
+float2 cartesianToPolar(float2 z)
+{
+	return float2(length(z), atan2(z.y, z.x));
+}
+
+float2 polarToCartesian(float2 p)
+{
+	return float2(p.x * cos(p.y), p.x * sin(p.y));
+}
+
+/**
+ * Computes e^z, where z = (x + i.y)
+ * e^z = e^x * (cosy + i.siny)
+ */
+float2 complexExp(float2 z) {
+	return exp(z.x) * float2(cos(z.y), sin(z.y));
+}
+
+// TODO port this to float as well
+// (A + ib) ^ n
+float2 complexPow(float2 z, float n)
+{
+	float r = length(z);
+	float theta = atan2(z.y, z.x);
+	float rn = pow(r, n);
+	float nth = n * theta;
+	return float2(rn * cos(nth), rn * sin(nth));
+}
+
+/**
+ * Computes natural log(z), where z = (x + i.y)
+ * log(z) =  log(r) + i.theta
+ *   where r = sqrt(x^2 + y^2)
+ *   where theta = atan(y/x)
+ */
+float2 complexLog(float2 z) {
+	return float2(log(length(z)), atan2(z.y, z.x));
+}
+
+float2 complexMult(float2 a, float2 b) {
+	return float2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+
+float2 complexDiv(in float2 a, in float2 b) {
+	float x = dot(b, b);
+	return float2(a.x * b.x + a.y * b.y, a.y * b.x - a.x * b.y) / x;
+}
